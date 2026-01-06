@@ -5,14 +5,27 @@ A lightweight proxy service for the [Deezer API](https://developers.deezer.com/a
 ## Features
 
 - **Full Deezer API Coverage** - Search, tracks, albums, artists, playlists, charts, radio, genres, and editorial content
+- **Auto-Generated OpenAPI Docs** - Interactive Swagger UI with spec generated from code
 - **Rate Limiting** - 100 requests per minute per IP address
-- **Input Validation** - Zod schema validation on all endpoints
+- **Type-Safe Validation** - Zod schemas with automatic OpenAPI metadata
 - **CORS Enabled** - Ready for browser-based applications
 - **Serverless Ready** - Designed for Appwrite Functions with a custom adapter
+
+## API Documentation
+
+Interactive API documentation is available via Swagger UI:
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /ui` | Swagger UI - Interactive API explorer |
+| `GET /doc` | OpenAPI 3.0 JSON specification |
+
+Visit `/ui` in your browser to explore and test all endpoints interactively.
 
 ## Tech Stack
 
 - [Hono](https://hono.dev) - Lightweight web framework
+- [@hono/zod-openapi](https://github.com/honojs/middleware/tree/main/packages/zod-openapi) - OpenAPI integration with Zod
 - [Bun](https://bun.sh) - Fast JavaScript runtime
 - [Zod](https://zod.dev) - TypeScript-first schema validation
 - [Appwrite Functions](https://appwrite.io/docs/products/functions) - Serverless deployment
@@ -121,19 +134,19 @@ bun install
 bun run dev
 ```
 
-The server runs at `http://localhost:3000` by default.
+The server runs at `http://localhost:8787` by default.
 
 ### Example Requests
 
 ```bash
 # Search for an artist
-curl "http://localhost:3000/search?q=daft+punk&limit=5"
+curl "http://localhost:8787/search?q=daft+punk&limit=5"
 
 # Get a specific track
-curl "http://localhost:3000/track/3135556"
+curl "http://localhost:8787/track/3135556"
 
 # Get top charts
-curl "http://localhost:3000/chart/tracks?limit=10"
+curl "http://localhost:8787/chart/tracks?limit=10"
 ```
 
 ## Deployment to Appwrite
@@ -192,15 +205,17 @@ https://<deployment-id>.<region>.appwrite.run
 ```
 src/
 ├── index.ts              # Entry point (Appwrite handler)
-├── app.ts                # Hono application
+├── dev.ts                # Local development server
+├── app.ts                # Hono application with OpenAPI
 ├── adapters/
 │   └── appwrite.ts       # Appwrite-to-Hono bridge
 ├── lib/
 │   ├── deezer.ts         # Deezer API client
-│   └── validation.ts     # Zod schemas
+│   ├── schemas.ts        # Zod schemas with OpenAPI metadata
+│   └── validation.ts     # Legacy validation schemas
 ├── middleware/
 │   └── rateLimiter.ts    # Rate limiting
-└── routes/
+└── routes/               # OpenAPIHono route handlers
     ├── search.ts
     ├── track.ts
     ├── album.ts

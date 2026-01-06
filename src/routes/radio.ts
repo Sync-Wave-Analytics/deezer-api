@@ -4,139 +4,221 @@
  * Endpoints for fetching radio stations and mixes.
  */
 
-import { Hono } from 'hono'
+import { OpenAPIHono, createRoute } from '@hono/zod-openapi'
 import { fetchDeezer } from '../lib/deezer'
-import { idSchema, paginationSchema, validate } from '../lib/validation'
-import { z } from 'zod'
+import {
+  IdParamSchema,
+  PaginationQuerySchema,
+  DeezerDataSchema,
+  ErrorSchema,
+} from '../lib/schemas'
 
-const radioParamsSchema = z.object({
-  id: idSchema,
+const radio = new OpenAPIHono()
+
+// =============================================================================
+// Route Definitions
+// =============================================================================
+
+const getRadioRoute = createRoute({
+  method: 'get',
+  path: '/',
+  tags: ['Radio'],
+  summary: 'Get all radio stations',
+  description: 'Retrieve a list of all available radio stations',
+  responses: {
+    200: {
+      content: { 'application/json': { schema: DeezerDataSchema } },
+      description: 'Radio stations',
+    },
+    502: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Upstream error from Deezer API',
+    },
+  },
 })
 
-const radio = new Hono()
+const getRadioGenresRoute = createRoute({
+  method: 'get',
+  path: '/genres',
+  tags: ['Radio'],
+  summary: 'Get radio by genre',
+  description: 'Retrieve radio stations organized by genre',
+  responses: {
+    200: {
+      content: { 'application/json': { schema: DeezerDataSchema } },
+      description: 'Radio genres',
+    },
+    502: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Upstream error from Deezer API',
+    },
+  },
+})
 
-/**
- * GET /radio
- * Get list of all radio stations
- */
-radio.get('/', async (c) => {
+const getRadioTopRoute = createRoute({
+  method: 'get',
+  path: '/top',
+  tags: ['Radio'],
+  summary: 'Get top radio stations',
+  description: 'Retrieve the most popular radio stations',
+  request: {
+    query: PaginationQuerySchema,
+  },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: DeezerDataSchema } },
+      description: 'Top radio stations',
+    },
+    400: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Validation error',
+    },
+    502: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Upstream error from Deezer API',
+    },
+  },
+})
+
+const getRadioListsRoute = createRoute({
+  method: 'get',
+  path: '/lists',
+  tags: ['Radio'],
+  summary: 'Get radio lists',
+  description: 'Retrieve all available radio lists',
+  responses: {
+    200: {
+      content: { 'application/json': { schema: DeezerDataSchema } },
+      description: 'Radio lists',
+    },
+    502: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Upstream error from Deezer API',
+    },
+  },
+})
+
+const getRadioByIdRoute = createRoute({
+  method: 'get',
+  path: '/{id}',
+  tags: ['Radio'],
+  summary: 'Get radio station by ID',
+  description: 'Retrieve information about a specific radio station',
+  request: {
+    params: IdParamSchema,
+  },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: DeezerDataSchema } },
+      description: 'Radio station details',
+    },
+    400: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Validation error',
+    },
+    404: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Radio station not found',
+    },
+    502: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Upstream error from Deezer API',
+    },
+  },
+})
+
+const getRadioTracksRoute = createRoute({
+  method: 'get',
+  path: '/{id}/tracks',
+  tags: ['Radio'],
+  summary: 'Get radio station tracks',
+  description: 'Retrieve tracks from a specific radio station',
+  request: {
+    params: IdParamSchema,
+    query: PaginationQuerySchema,
+  },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: DeezerDataSchema } },
+      description: 'Radio station tracks',
+    },
+    400: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Validation error',
+    },
+    404: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Radio station not found',
+    },
+    502: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Upstream error from Deezer API',
+    },
+  },
+})
+
+// =============================================================================
+// Route Handlers
+// =============================================================================
+
+radio.openapi(getRadioRoute, async (c) => {
   const { data, error, status } = await fetchDeezer('/radio')
 
   if (error) {
-    return c.json({ error: 'Upstream Error', message: error }, status)
+    return c.json({ error: 'Upstream Error', message: error }, status as 502)
   }
 
-  return c.json(data)
+  return c.json(data, 200)
 })
 
-/**
- * GET /radio/genres
- * Get radio stations by genre
- */
-radio.get('/genres', async (c) => {
+radio.openapi(getRadioGenresRoute, async (c) => {
   const { data, error, status } = await fetchDeezer('/radio/genres')
 
   if (error) {
-    return c.json({ error: 'Upstream Error', message: error }, status)
+    return c.json({ error: 'Upstream Error', message: error }, status as 502)
   }
 
-  return c.json(data)
+  return c.json(data, 200)
 })
 
-/**
- * GET /radio/top
- * Get top radio stations
- */
-radio.get('/top', async (c) => {
-  const validation = validate(paginationSchema, c.req.query())
-
-  if (!validation.success) {
-    return c.json({
-      error: 'Validation Error',
-      message: validation.error
-    }, 400)
-  }
-
-  const { limit, index } = validation.data
+radio.openapi(getRadioTopRoute, async (c) => {
+  const { limit, index } = c.req.valid('query')
 
   const { data, error, status } = await fetchDeezer('/radio/top', { limit, index })
 
   if (error) {
-    return c.json({ error: 'Upstream Error', message: error }, status)
+    return c.json({ error: 'Upstream Error', message: error }, status as 502)
   }
 
-  return c.json(data)
+  return c.json(data, 200)
 })
 
-/**
- * GET /radio/lists
- * Get all radio lists
- */
-radio.get('/lists', async (c) => {
+radio.openapi(getRadioListsRoute, async (c) => {
   const { data, error, status } = await fetchDeezer('/radio/lists')
 
   if (error) {
-    return c.json({ error: 'Upstream Error', message: error }, status)
+    return c.json({ error: 'Upstream Error', message: error }, status as 502)
   }
 
-  return c.json(data)
+  return c.json(data, 200)
 })
 
-/**
- * GET /radio/:id
- * Get radio station by ID
- */
-radio.get('/:id', async (c) => {
-  const validation = validate(radioParamsSchema, { id: c.req.param('id') })
-
-  if (!validation.success) {
-    return c.json({
-      error: 'Validation Error',
-      message: validation.error,
-      example: '/radio/6'
-    }, 400)
-  }
-
-  const { id } = validation.data
+radio.openapi(getRadioByIdRoute, async (c) => {
+  const { id } = c.req.valid('param')
 
   const { data, error, status } = await fetchDeezer(`/radio/${id}`)
 
   if (error) {
-    return c.json({
-      error: status === 404 ? 'Not Found' : 'Upstream Error',
-      message: error
-    }, status)
+    const errorType = status === 404 ? 'Not Found' : 'Upstream Error'
+    return c.json({ error: errorType, message: error }, status as 404)
   }
 
-  return c.json(data)
+  return c.json(data, 200)
 })
 
-/**
- * GET /radio/:id/tracks
- * Get tracks from a radio station
- */
-radio.get('/:id/tracks', async (c) => {
-  const paramsValidation = validate(radioParamsSchema, { id: c.req.param('id') })
-
-  if (!paramsValidation.success) {
-    return c.json({
-      error: 'Validation Error',
-      message: paramsValidation.error,
-      example: '/radio/6/tracks'
-    }, 400)
-  }
-
-  const queryValidation = validate(paginationSchema, c.req.query())
-
-  if (!queryValidation.success) {
-    return c.json({
-      error: 'Validation Error',
-      message: queryValidation.error
-    }, 400)
-  }
-
-  const { id } = paramsValidation.data
-  const { limit, index } = queryValidation.data
+radio.openapi(getRadioTracksRoute, async (c) => {
+  const { id } = c.req.valid('param')
+  const { limit, index } = c.req.valid('query')
 
   const { data, error, status } = await fetchDeezer(`/radio/${id}/tracks`, {
     limit,
@@ -144,13 +226,11 @@ radio.get('/:id/tracks', async (c) => {
   })
 
   if (error) {
-    return c.json({
-      error: status === 404 ? 'Not Found' : 'Upstream Error',
-      message: error
-    }, status)
+    const errorType = status === 404 ? 'Not Found' : 'Upstream Error'
+    return c.json({ error: errorType, message: error }, status as 404)
   }
 
-  return c.json(data)
+  return c.json(data, 200)
 })
 
 export default radio

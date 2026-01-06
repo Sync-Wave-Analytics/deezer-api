@@ -4,72 +4,131 @@
  * Endpoints for fetching playlist information.
  */
 
-import { Hono } from 'hono'
+import { OpenAPIHono, createRoute } from '@hono/zod-openapi'
 import { fetchDeezer } from '../lib/deezer'
-import { idSchema, paginationSchema, validate } from '../lib/validation'
-import { z } from 'zod'
+import {
+  IdParamSchema,
+  PaginationQuerySchema,
+  PlaylistSchema,
+  DeezerDataSchema,
+  ErrorSchema,
+} from '../lib/schemas'
 
-const playlistParamsSchema = z.object({
-  id: idSchema,
+const playlist = new OpenAPIHono()
+
+// =============================================================================
+// Route Definitions
+// =============================================================================
+
+const getPlaylistRoute = createRoute({
+  method: 'get',
+  path: '/{id}',
+  tags: ['Playlist'],
+  summary: 'Get playlist by ID',
+  description: 'Retrieve detailed information about a specific playlist',
+  request: {
+    params: IdParamSchema,
+  },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: PlaylistSchema } },
+      description: 'Playlist details',
+    },
+    400: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Validation error',
+    },
+    404: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Playlist not found',
+    },
+    502: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Upstream error from Deezer API',
+    },
+  },
 })
 
-const playlist = new Hono()
+const getPlaylistTracksRoute = createRoute({
+  method: 'get',
+  path: '/{id}/tracks',
+  tags: ['Playlist'],
+  summary: 'Get playlist tracks',
+  description: 'Retrieve all tracks from a specific playlist',
+  request: {
+    params: IdParamSchema,
+    query: PaginationQuerySchema,
+  },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: DeezerDataSchema } },
+      description: 'Playlist tracks',
+    },
+    400: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Validation error',
+    },
+    404: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Playlist not found',
+    },
+    502: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Upstream error from Deezer API',
+    },
+  },
+})
 
-/**
- * GET /playlist/:id
- * Get playlist details by ID
- */
-playlist.get('/:id', async (c) => {
-  const validation = validate(playlistParamsSchema, { id: c.req.param('id') })
+const getPlaylistFansRoute = createRoute({
+  method: 'get',
+  path: '/{id}/fans',
+  tags: ['Playlist'],
+  summary: 'Get playlist fans',
+  description: 'Retrieve fans of a specific playlist',
+  request: {
+    params: IdParamSchema,
+    query: PaginationQuerySchema,
+  },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: DeezerDataSchema } },
+      description: 'Playlist fans',
+    },
+    400: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Validation error',
+    },
+    404: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Playlist not found',
+    },
+    502: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Upstream error from Deezer API',
+    },
+  },
+})
 
-  if (!validation.success) {
-    return c.json({
-      error: 'Validation Error',
-      message: validation.error,
-      example: '/playlist/3155776842'
-    }, 400)
-  }
+// =============================================================================
+// Route Handlers
+// =============================================================================
 
-  const { id } = validation.data
+playlist.openapi(getPlaylistRoute, async (c) => {
+  const { id } = c.req.valid('param')
 
   const { data, error, status } = await fetchDeezer(`/playlist/${id}`)
 
   if (error) {
-    return c.json({
-      error: status === 404 ? 'Not Found' : 'Upstream Error',
-      message: error
-    }, status)
+    const errorType = status === 404 ? 'Not Found' : 'Upstream Error'
+    return c.json({ error: errorType, message: error }, status as 404)
   }
 
-  return c.json(data)
+  return c.json(data, 200)
 })
 
-/**
- * GET /playlist/:id/tracks
- * Get tracks from a playlist
- */
-playlist.get('/:id/tracks', async (c) => {
-  const paramsValidation = validate(playlistParamsSchema, { id: c.req.param('id') })
-
-  if (!paramsValidation.success) {
-    return c.json({
-      error: 'Validation Error',
-      message: paramsValidation.error,
-      example: '/playlist/3155776842/tracks'
-    }, 400)
-  }
-
-  const queryValidation = validate(paginationSchema, c.req.query())
-
-  if (!queryValidation.success) {
-    return c.json({
-      error: 'Validation Error',
-      message: queryValidation.error
-    }, 400)
-  }
-
-  const { id } = paramsValidation.data
-  const { limit, index } = queryValidation.data
+playlist.openapi(getPlaylistTracksRoute, async (c) => {
+  const { id } = c.req.valid('param')
+  const { limit, index } = c.req.valid('query')
 
   const { data, error, status } = await fetchDeezer(`/playlist/${id}/tracks`, {
     limit,
@@ -77,40 +136,16 @@ playlist.get('/:id/tracks', async (c) => {
   })
 
   if (error) {
-    return c.json({
-      error: status === 404 ? 'Not Found' : 'Upstream Error',
-      message: error
-    }, status)
+    const errorType = status === 404 ? 'Not Found' : 'Upstream Error'
+    return c.json({ error: errorType, message: error }, status as 404)
   }
 
-  return c.json(data)
+  return c.json(data, 200)
 })
 
-/**
- * GET /playlist/:id/fans
- * Get fans of a playlist
- */
-playlist.get('/:id/fans', async (c) => {
-  const paramsValidation = validate(playlistParamsSchema, { id: c.req.param('id') })
-
-  if (!paramsValidation.success) {
-    return c.json({
-      error: 'Validation Error',
-      message: paramsValidation.error
-    }, 400)
-  }
-
-  const queryValidation = validate(paginationSchema, c.req.query())
-
-  if (!queryValidation.success) {
-    return c.json({
-      error: 'Validation Error',
-      message: queryValidation.error
-    }, 400)
-  }
-
-  const { id } = paramsValidation.data
-  const { limit, index } = queryValidation.data
+playlist.openapi(getPlaylistFansRoute, async (c) => {
+  const { id } = c.req.valid('param')
+  const { limit, index } = c.req.valid('query')
 
   const { data, error, status } = await fetchDeezer(`/playlist/${id}/fans`, {
     limit,
@@ -118,13 +153,11 @@ playlist.get('/:id/fans', async (c) => {
   })
 
   if (error) {
-    return c.json({
-      error: status === 404 ? 'Not Found' : 'Upstream Error',
-      message: error
-    }, status)
+    const errorType = status === 404 ? 'Not Found' : 'Upstream Error'
+    return c.json({ error: errorType, message: error }, status as 404)
   }
 
-  return c.json(data)
+  return c.json(data, 200)
 })
 
 export default playlist

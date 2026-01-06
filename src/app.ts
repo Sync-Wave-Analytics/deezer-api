@@ -2,9 +2,11 @@
  * Deezer API Proxy - Hono Application
  *
  * A proxy service for the Deezer API with rate limiting and CORS support.
+ * OpenAPI documentation is auto-generated from route definitions.
  */
 
-import { Hono } from 'hono'
+import { OpenAPIHono } from '@hono/zod-openapi'
+import { swaggerUI } from '@hono/swagger-ui'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 import { rateLimiter } from './middleware/rateLimiter'
@@ -20,8 +22,8 @@ import radio from './routes/radio'
 import genre from './routes/genre'
 import editorial from './routes/editorial'
 
-// Create Hono app
-const app = new Hono()
+// Create OpenAPIHono app for auto-generated documentation
+const app = new OpenAPIHono()
 
 // =============================================================================
 // Middleware
@@ -48,6 +50,42 @@ app.use('*', cors({
 app.use('*', rateLimiter)
 
 // =============================================================================
+// OpenAPI Documentation (Auto-generated from route definitions)
+// =============================================================================
+
+// Determine servers based on environment
+const isDev = process.env.NODE_ENV === 'development'
+const servers = isDev
+  ? [{ url: 'http://localhost:8787', description: 'Local development' }]
+  : [{ url: 'https://deezer.songster.cloud', description: 'Production' }]
+
+// Serve auto-generated OpenAPI JSON spec
+app.doc('/doc', {
+  openapi: '3.0.0',
+  info: {
+    title: 'Deezer API Proxy',
+    version: '1.0.0',
+    description: 'A proxy service for the Deezer API with rate limiting, CORS support, and OpenAPI documentation.',
+    contact: {
+      name: 'API Support',
+      url: 'https://github.com/mnestel/deezer-api',
+    },
+    license: {
+      name: 'MIT',
+      url: 'https://opensource.org/licenses/MIT',
+    },
+  },
+  servers,
+  externalDocs: {
+    description: 'Deezer API Documentation',
+    url: 'https://developers.deezer.com/api',
+  },
+})
+
+// Serve Swagger UI
+app.get('/ui', swaggerUI({ url: '/doc' }))
+
+// =============================================================================
 // Routes
 // =============================================================================
 
@@ -57,7 +95,11 @@ app.get('/', (c) => {
     name: 'Deezer API Proxy',
     version: '1.0.0',
     status: 'healthy',
-    documentation: 'https://developers.deezer.com/api',
+    documentation: {
+      openapi: '/doc',
+      swagger: '/ui',
+      deezer: 'https://developers.deezer.com/api',
+    },
     endpoints: {
       search: {
         path: '/search',
@@ -133,8 +175,11 @@ app.notFound((c) => {
   return c.json({
     error: 'Not Found',
     message: 'The requested endpoint does not exist',
+    documentation: '/ui',
     availableEndpoints: [
       'GET /',
+      'GET /doc',
+      'GET /ui',
       'GET /search?q=query',
       'GET /search/track?q=query',
       'GET /search/album?q=query',

@@ -4,86 +4,188 @@
  * Endpoints for fetching Deezer editorial content (curated selections).
  */
 
-import { Hono } from 'hono'
+import { OpenAPIHono, createRoute } from '@hono/zod-openapi'
 import { fetchDeezer } from '../lib/deezer'
-import { idSchema, paginationSchema, validate } from '../lib/validation'
-import { z } from 'zod'
+import {
+  IdParamSchema,
+  PaginationQuerySchema,
+  DeezerDataSchema,
+  ErrorSchema,
+} from '../lib/schemas'
 
-const editorialParamsSchema = z.object({
-  id: idSchema,
+const editorial = new OpenAPIHono()
+
+// =============================================================================
+// Route Definitions
+// =============================================================================
+
+const getEditorialsRoute = createRoute({
+  method: 'get',
+  path: '/',
+  tags: ['Editorial'],
+  summary: 'Get all editorial content',
+  description: 'Retrieve a list of all editorial selections',
+  responses: {
+    200: {
+      content: { 'application/json': { schema: DeezerDataSchema } },
+      description: 'Editorial content',
+    },
+    502: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Upstream error from Deezer API',
+    },
+  },
 })
 
-const editorial = new Hono()
+const getEditorialByIdRoute = createRoute({
+  method: 'get',
+  path: '/{id}',
+  tags: ['Editorial'],
+  summary: 'Get editorial by ID',
+  description: 'Retrieve information about a specific editorial selection',
+  request: {
+    params: IdParamSchema,
+  },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: DeezerDataSchema } },
+      description: 'Editorial details',
+    },
+    400: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Validation error',
+    },
+    404: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Editorial not found',
+    },
+    502: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Upstream error from Deezer API',
+    },
+  },
+})
 
-/**
- * GET /editorial
- * Get list of all editorial selections
- */
-editorial.get('/', async (c) => {
+const getEditorialSelectionRoute = createRoute({
+  method: 'get',
+  path: '/{id}/selection',
+  tags: ['Editorial'],
+  summary: 'Get editorial selection',
+  description: 'Retrieve curated selection for a specific editorial',
+  request: {
+    params: IdParamSchema,
+    query: PaginationQuerySchema,
+  },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: DeezerDataSchema } },
+      description: 'Editorial selection',
+    },
+    400: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Validation error',
+    },
+    404: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Editorial not found',
+    },
+    502: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Upstream error from Deezer API',
+    },
+  },
+})
+
+const getEditorialChartsRoute = createRoute({
+  method: 'get',
+  path: '/{id}/charts',
+  tags: ['Editorial'],
+  summary: 'Get editorial charts',
+  description: 'Retrieve charts for a specific editorial (top tracks, albums, artists)',
+  request: {
+    params: IdParamSchema,
+    query: PaginationQuerySchema,
+  },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: DeezerDataSchema } },
+      description: 'Editorial charts',
+    },
+    400: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Validation error',
+    },
+    404: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Editorial not found',
+    },
+    502: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Upstream error from Deezer API',
+    },
+  },
+})
+
+const getEditorialReleasesRoute = createRoute({
+  method: 'get',
+  path: '/{id}/releases',
+  tags: ['Editorial'],
+  summary: 'Get editorial releases',
+  description: 'Retrieve new releases for a specific editorial',
+  request: {
+    params: IdParamSchema,
+    query: PaginationQuerySchema,
+  },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: DeezerDataSchema } },
+      description: 'Editorial releases',
+    },
+    400: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Validation error',
+    },
+    404: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Editorial not found',
+    },
+    502: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Upstream error from Deezer API',
+    },
+  },
+})
+
+// =============================================================================
+// Route Handlers
+// =============================================================================
+
+editorial.openapi(getEditorialsRoute, async (c) => {
   const { data, error, status } = await fetchDeezer('/editorial')
 
   if (error) {
-    return c.json({ error: 'Upstream Error', message: error }, status)
+    return c.json({ error: 'Upstream Error', message: error }, status as 502)
   }
 
-  return c.json(data)
+  return c.json(data, 200)
 })
 
-/**
- * GET /editorial/:id
- * Get editorial selection by ID
- */
-editorial.get('/:id', async (c) => {
-  const validation = validate(editorialParamsSchema, { id: c.req.param('id') })
-
-  if (!validation.success) {
-    return c.json({
-      error: 'Validation Error',
-      message: validation.error,
-      example: '/editorial/0'
-    }, 400)
-  }
-
-  const { id } = validation.data
+editorial.openapi(getEditorialByIdRoute, async (c) => {
+  const { id } = c.req.valid('param')
 
   const { data, error, status } = await fetchDeezer(`/editorial/${id}`)
 
   if (error) {
-    return c.json({
-      error: status === 404 ? 'Not Found' : 'Upstream Error',
-      message: error
-    }, status)
+    const errorType = status === 404 ? 'Not Found' : 'Upstream Error'
+    return c.json({ error: errorType, message: error }, status as 404)
   }
 
-  return c.json(data)
+  return c.json(data, 200)
 })
 
-/**
- * GET /editorial/:id/selection
- * Get curated selection for an editorial
- */
-editorial.get('/:id/selection', async (c) => {
-  const paramsValidation = validate(editorialParamsSchema, { id: c.req.param('id') })
-
-  if (!paramsValidation.success) {
-    return c.json({
-      error: 'Validation Error',
-      message: paramsValidation.error,
-      example: '/editorial/0/selection'
-    }, 400)
-  }
-
-  const queryValidation = validate(paginationSchema, c.req.query())
-
-  if (!queryValidation.success) {
-    return c.json({
-      error: 'Validation Error',
-      message: queryValidation.error
-    }, 400)
-  }
-
-  const { id } = paramsValidation.data
-  const { limit, index } = queryValidation.data
+editorial.openapi(getEditorialSelectionRoute, async (c) => {
+  const { id } = c.req.valid('param')
+  const { limit, index } = c.req.valid('query')
 
   const { data, error, status } = await fetchDeezer(`/editorial/${id}/selection`, {
     limit,
@@ -91,41 +193,16 @@ editorial.get('/:id/selection', async (c) => {
   })
 
   if (error) {
-    return c.json({
-      error: status === 404 ? 'Not Found' : 'Upstream Error',
-      message: error
-    }, status)
+    const errorType = status === 404 ? 'Not Found' : 'Upstream Error'
+    return c.json({ error: errorType, message: error }, status as 404)
   }
 
-  return c.json(data)
+  return c.json(data, 200)
 })
 
-/**
- * GET /editorial/:id/charts
- * Get charts for an editorial (top tracks, albums, artists)
- */
-editorial.get('/:id/charts', async (c) => {
-  const paramsValidation = validate(editorialParamsSchema, { id: c.req.param('id') })
-
-  if (!paramsValidation.success) {
-    return c.json({
-      error: 'Validation Error',
-      message: paramsValidation.error,
-      example: '/editorial/0/charts'
-    }, 400)
-  }
-
-  const queryValidation = validate(paginationSchema, c.req.query())
-
-  if (!queryValidation.success) {
-    return c.json({
-      error: 'Validation Error',
-      message: queryValidation.error
-    }, 400)
-  }
-
-  const { id } = paramsValidation.data
-  const { limit, index } = queryValidation.data
+editorial.openapi(getEditorialChartsRoute, async (c) => {
+  const { id } = c.req.valid('param')
+  const { limit, index } = c.req.valid('query')
 
   const { data, error, status } = await fetchDeezer(`/editorial/${id}/charts`, {
     limit,
@@ -133,41 +210,16 @@ editorial.get('/:id/charts', async (c) => {
   })
 
   if (error) {
-    return c.json({
-      error: status === 404 ? 'Not Found' : 'Upstream Error',
-      message: error
-    }, status)
+    const errorType = status === 404 ? 'Not Found' : 'Upstream Error'
+    return c.json({ error: errorType, message: error }, status as 404)
   }
 
-  return c.json(data)
+  return c.json(data, 200)
 })
 
-/**
- * GET /editorial/:id/releases
- * Get new releases for an editorial
- */
-editorial.get('/:id/releases', async (c) => {
-  const paramsValidation = validate(editorialParamsSchema, { id: c.req.param('id') })
-
-  if (!paramsValidation.success) {
-    return c.json({
-      error: 'Validation Error',
-      message: paramsValidation.error,
-      example: '/editorial/0/releases'
-    }, 400)
-  }
-
-  const queryValidation = validate(paginationSchema, c.req.query())
-
-  if (!queryValidation.success) {
-    return c.json({
-      error: 'Validation Error',
-      message: queryValidation.error
-    }, 400)
-  }
-
-  const { id } = paramsValidation.data
-  const { limit, index } = queryValidation.data
+editorial.openapi(getEditorialReleasesRoute, async (c) => {
+  const { id } = c.req.valid('param')
+  const { limit, index } = c.req.valid('query')
 
   const { data, error, status } = await fetchDeezer(`/editorial/${id}/releases`, {
     limit,
@@ -175,13 +227,11 @@ editorial.get('/:id/releases', async (c) => {
   })
 
   if (error) {
-    return c.json({
-      error: status === 404 ? 'Not Found' : 'Upstream Error',
-      message: error
-    }, status)
+    const errorType = status === 404 ? 'Not Found' : 'Upstream Error'
+    return c.json({ error: errorType, message: error }, status as 404)
   }
 
-  return c.json(data)
+  return c.json(data, 200)
 })
 
 export default editorial
