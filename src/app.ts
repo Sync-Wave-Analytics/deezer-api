@@ -21,6 +21,8 @@ import chart from './routes/chart'
 import radio from './routes/radio'
 import genre from './routes/genre'
 import editorial from './routes/editorial'
+import podcast from './routes/podcast'
+import episode from './routes/episode'
 
 // Create OpenAPIHono app for auto-generated documentation
 const app = new OpenAPIHono()
@@ -53,13 +55,12 @@ app.use('*', rateLimiter)
 // OpenAPI Documentation (Auto-generated from route definitions)
 // =============================================================================
 
-// Determine servers based on environment
-const isDev = process.env.NODE_ENV === 'development'
-const servers = isDev
-  ? [{ url: 'http://localhost:8787', description: 'Local development' }]
-  : [{ url: 'https://deezer.songster.cloud', description: 'Production' }]
-
 // Serve auto-generated OpenAPI JSON spec
+const servers = [{ url: 'http://localhost:8787', description: 'Local development' }]
+if (process.env.API_URL) {
+  servers.unshift({ url: process.env.API_URL, description: 'Production' })
+}
+
 app.doc('/doc', {
   openapi: '3.0.0',
   info: {
@@ -104,12 +105,14 @@ app.get('/', (c) => {
       search: {
         path: '/search',
         params: ['q (required)', 'order', 'limit', 'index', 'strict'],
-        subRoutes: ['/search/track', '/search/album', '/search/artist'],
+        subRoutes: ['/search/track', '/search/album', '/search/artist', '/search/playlist', '/search/podcast', '/search/radio', '/search/user'],
         example: '/search?q=daft+punk&limit=10'
       },
       track: {
         path: '/track/:id',
-        example: '/track/3135556'
+        subRoutes: ['/track/isrc/:isrc'],
+        example: '/track/3135556',
+        isrcExample: '/track/isrc/USUM71703861'
       },
       album: {
         path: '/album/:id',
@@ -118,7 +121,7 @@ app.get('/', (c) => {
       },
       artist: {
         path: '/artist/:id',
-        subRoutes: ['/artist/:id/top', '/artist/:id/albums'],
+        subRoutes: ['/artist/:id/top', '/artist/:id/albums', '/artist/:id/related', '/artist/:id/radio'],
         example: '/artist/27'
       },
       playlist: {
@@ -145,6 +148,15 @@ app.get('/', (c) => {
         path: '/editorial',
         subRoutes: ['/editorial/:id', '/editorial/:id/selection', '/editorial/:id/charts', '/editorial/:id/releases'],
         example: '/editorial/0/charts'
+      },
+      podcast: {
+        path: '/podcast/:id',
+        subRoutes: ['/podcast/:id/episodes'],
+        example: '/podcast/699612'
+      },
+      episode: {
+        path: '/episode/:id',
+        example: '/episode/639530442'
       }
     },
     rateLimit: {
@@ -165,6 +177,8 @@ app.route('/chart', chart)
 app.route('/radio', radio)
 app.route('/genre', genre)
 app.route('/editorial', editorial)
+app.route('/podcast', podcast)
+app.route('/episode', episode)
 
 // =============================================================================
 // Error Handling
@@ -184,12 +198,19 @@ app.notFound((c) => {
       'GET /search/track?q=query',
       'GET /search/album?q=query',
       'GET /search/artist?q=query',
+      'GET /search/playlist?q=query',
+      'GET /search/podcast?q=query',
+      'GET /search/radio?q=query',
+      'GET /search/user?q=query',
       'GET /track/:id',
+      'GET /track/isrc/:isrc',
       'GET /album/:id',
       'GET /album/:id/tracks',
       'GET /artist/:id',
       'GET /artist/:id/top',
       'GET /artist/:id/albums',
+      'GET /artist/:id/related',
+      'GET /artist/:id/radio',
       'GET /playlist/:id',
       'GET /playlist/:id/tracks',
       'GET /playlist/:id/fans',
@@ -213,7 +234,10 @@ app.notFound((c) => {
       'GET /editorial/:id',
       'GET /editorial/:id/selection',
       'GET /editorial/:id/charts',
-      'GET /editorial/:id/releases'
+      'GET /editorial/:id/releases',
+      'GET /podcast/:id',
+      'GET /podcast/:id/episodes',
+      'GET /episode/:id'
     ]
   }, 404)
 })

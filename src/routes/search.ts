@@ -119,6 +119,106 @@ const searchArtistRoute = createRoute({
   },
 })
 
+const searchPlaylistRoute = createRoute({
+  method: 'get',
+  path: '/playlist',
+  tags: ['Search'],
+  summary: 'Search playlists',
+  description: 'Search specifically for playlists',
+  request: {
+    query: SimpleSearchQuerySchema,
+  },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: DeezerDataSchema } },
+      description: 'Playlist search results',
+    },
+    400: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Validation error',
+    },
+    502: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Upstream error from Deezer API',
+    },
+  },
+})
+
+const searchPodcastRoute = createRoute({
+  method: 'get',
+  path: '/podcast',
+  tags: ['Search'],
+  summary: 'Search podcasts',
+  description: 'Search specifically for podcasts',
+  request: {
+    query: SimpleSearchQuerySchema,
+  },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: DeezerDataSchema } },
+      description: 'Podcast search results',
+    },
+    400: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Validation error',
+    },
+    502: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Upstream error from Deezer API',
+    },
+  },
+})
+
+const searchRadioRoute = createRoute({
+  method: 'get',
+  path: '/radio',
+  tags: ['Search'],
+  summary: 'Search radio stations',
+  description: 'Search specifically for radio stations',
+  request: {
+    query: SimpleSearchQuerySchema,
+  },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: DeezerDataSchema } },
+      description: 'Radio search results',
+    },
+    400: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Validation error',
+    },
+    502: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Upstream error from Deezer API',
+    },
+  },
+})
+
+const searchUserRoute = createRoute({
+  method: 'get',
+  path: '/user',
+  tags: ['Search'],
+  summary: 'Search users',
+  description: 'Search for public user profiles',
+  request: {
+    query: SimpleSearchQuerySchema,
+  },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: DeezerDataSchema } },
+      description: 'User search results',
+    },
+    400: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Validation error',
+    },
+    502: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Upstream error from Deezer API',
+    },
+  },
+})
+
 // =============================================================================
 // Route Handlers
 // =============================================================================
@@ -142,10 +242,11 @@ search.openapi(searchRoute, async (c) => {
 })
 
 search.openapi(searchTrackRoute, async (c) => {
-  const { q, limit, index } = c.req.valid('query')
+  const { q, order, limit, index } = c.req.valid('query')
 
   const { data, error, status } = await fetchDeezer('/search/track', {
     q,
+    order,
     limit,
     index,
   })
@@ -158,10 +259,11 @@ search.openapi(searchTrackRoute, async (c) => {
 })
 
 search.openapi(searchAlbumRoute, async (c) => {
-  const { q, limit, index } = c.req.valid('query')
+  const { q, order, limit, index } = c.req.valid('query')
 
   const { data, error, status } = await fetchDeezer('/search/album', {
     q,
+    order,
     limit,
     index,
   })
@@ -174,10 +276,79 @@ search.openapi(searchAlbumRoute, async (c) => {
 })
 
 search.openapi(searchArtistRoute, async (c) => {
-  const { q, limit, index } = c.req.valid('query')
+  const { q, order, limit, index } = c.req.valid('query')
 
   const { data, error, status } = await fetchDeezer('/search/artist', {
     q,
+    order,
+    limit,
+    index,
+  })
+
+  if (error) {
+    return c.json({ error: 'Upstream Error', message: error }, status as 502)
+  }
+
+  return c.json(data, 200)
+})
+
+search.openapi(searchPlaylistRoute, async (c) => {
+  const { q, order, limit, index } = c.req.valid('query')
+
+  const { data, error, status } = await fetchDeezer('/search/playlist', {
+    q,
+    order,
+    limit,
+    index,
+  })
+
+  if (error) {
+    return c.json({ error: 'Upstream Error', message: error }, status as 502)
+  }
+
+  return c.json(data, 200)
+})
+
+search.openapi(searchPodcastRoute, async (c) => {
+  const { q, order, limit, index } = c.req.valid('query')
+
+  const { data, error, status } = await fetchDeezer('/search/podcast', {
+    q,
+    order,
+    limit,
+    index,
+  })
+
+  if (error) {
+    return c.json({ error: 'Upstream Error', message: error }, status as 502)
+  }
+
+  return c.json(data, 200)
+})
+
+search.openapi(searchRadioRoute, async (c) => {
+  const { q, order, limit, index } = c.req.valid('query')
+
+  const { data, error, status } = await fetchDeezer('/search/radio', {
+    q,
+    order,
+    limit,
+    index,
+  })
+
+  if (error) {
+    return c.json({ error: 'Upstream Error', message: error }, status as 502)
+  }
+
+  return c.json(data, 200)
+})
+
+search.openapi(searchUserRoute, async (c) => {
+  const { q, order, limit, index } = c.req.valid('query')
+
+  const { data, error, status } = await fetchDeezer('/search/user', {
+    q,
+    order,
     limit,
     index,
   })

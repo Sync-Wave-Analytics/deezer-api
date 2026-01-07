@@ -5,9 +5,6 @@
  * Use: bun run dev
  */
 
-// Set development environment before importing app
-process.env.NODE_ENV = 'development'
-
 import app from './app'
 
 const port = parseInt(process.env.PORT || '8787', 10)

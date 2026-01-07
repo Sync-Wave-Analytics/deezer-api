@@ -21,6 +21,17 @@ export const IdParamSchema = z.object({
     }),
 })
 
+export const IsrcParamSchema = z.object({
+  isrc: z
+    .string()
+    .regex(/^[A-Z]{2}[A-Z0-9]{3}\d{7}$/, 'Invalid ISRC format')
+    .openapi({
+      param: { name: 'isrc', in: 'path' },
+      example: 'USUM71703861',
+      description: 'International Standard Recording Code (12 characters)',
+    }),
+})
+
 export const PaginationQuerySchema = z.object({
   limit: z
     .string()
@@ -117,6 +128,26 @@ export const SimpleSearchQuerySchema = z.object({
       param: { name: 'q', in: 'query', required: true },
       example: 'daft punk',
       description: 'Search query',
+    }),
+  order: z
+    .enum([
+      'RANKING',
+      'TRACK_ASC',
+      'TRACK_DESC',
+      'ARTIST_ASC',
+      'ARTIST_DESC',
+      'ALBUM_ASC',
+      'ALBUM_DESC',
+      'RATING_ASC',
+      'RATING_DESC',
+      'DURATION_ASC',
+      'DURATION_DESC',
+    ])
+    .optional()
+    .openapi({
+      param: { name: 'order', in: 'query' },
+      example: 'RANKING',
+      description: 'Sort order for results',
     }),
   limit: z
     .string()

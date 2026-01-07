@@ -6,13 +6,42 @@
 
 import { OpenAPIHono, createRoute } from '@hono/zod-openapi'
 import { fetchDeezer } from '../lib/deezer'
-import { IdParamSchema, TrackSchema, ErrorSchema } from '../lib/schemas'
+import { IdParamSchema, IsrcParamSchema, TrackSchema, ErrorSchema } from '../lib/schemas'
 
 const track = new OpenAPIHono()
 
 // =============================================================================
 // Route Definitions
 // =============================================================================
+
+const getTrackByIsrcRoute = createRoute({
+  method: 'get',
+  path: '/isrc/{isrc}',
+  tags: ['Track'],
+  summary: 'Get track by ISRC',
+  description: 'Retrieve a track using its International Standard Recording Code (ISRC). Note: If multiple tracks share the same ISRC, only one is returned.',
+  request: {
+    params: IsrcParamSchema,
+  },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: TrackSchema } },
+      description: 'Track details',
+    },
+    400: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Validation error',
+    },
+    404: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Track not found for this ISRC',
+    },
+    502: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Upstream error from Deezer API',
+    },
+  },
+})
 
 const getTrackRoute = createRoute({
   method: 'get',
@@ -46,6 +75,20 @@ const getTrackRoute = createRoute({
 // =============================================================================
 // Route Handlers
 // =============================================================================
+
+// ISRC route must be registered first to avoid path conflicts with /{id}
+track.openapi(getTrackByIsrcRoute, async (c) => {
+  const { isrc } = c.req.valid('param')
+
+  const { data, error, status } = await fetchDeezer(`/track/isrc:${isrc}`)
+
+  if (error) {
+    const errorType = status === 404 ? 'Not Found' : 'Upstream Error'
+    return c.json({ error: errorType, message: error }, status as 404)
+  }
+
+  return c.json(data, 200)
+})
 
 track.openapi(getTrackRoute, async (c) => {
   const { id } = c.req.valid('param')

@@ -109,6 +109,66 @@ const getArtistAlbumsRoute = createRoute({
   },
 })
 
+const getArtistRelatedRoute = createRoute({
+  method: 'get',
+  path: '/{id}/related',
+  tags: ['Artist'],
+  summary: 'Get related artists',
+  description: 'Retrieve artists similar to this artist',
+  request: {
+    params: IdParamSchema,
+    query: PaginationQuerySchema,
+  },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: DeezerDataSchema } },
+      description: 'Related artists',
+    },
+    400: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Validation error',
+    },
+    404: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Artist not found',
+    },
+    502: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Upstream error from Deezer API',
+    },
+  },
+})
+
+const getArtistRadioRoute = createRoute({
+  method: 'get',
+  path: '/{id}/radio',
+  tags: ['Artist'],
+  summary: 'Get artist radio',
+  description: 'Retrieve a mix of tracks inspired by the artist',
+  request: {
+    params: IdParamSchema,
+    query: PaginationQuerySchema,
+  },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: DeezerDataSchema } },
+      description: 'Artist radio tracks',
+    },
+    400: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Validation error',
+    },
+    404: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Artist not found',
+    },
+    502: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Upstream error from Deezer API',
+    },
+  },
+})
+
 // =============================================================================
 // Route Handlers
 // =============================================================================
@@ -148,6 +208,40 @@ artist.openapi(getArtistAlbumsRoute, async (c) => {
   const { limit, index } = c.req.valid('query')
 
   const { data, error, status } = await fetchDeezer(`/artist/${id}/albums`, {
+    limit,
+    index,
+  })
+
+  if (error) {
+    const errorType = status === 404 ? 'Not Found' : 'Upstream Error'
+    return c.json({ error: errorType, message: error }, status as 404)
+  }
+
+  return c.json(data, 200)
+})
+
+artist.openapi(getArtistRelatedRoute, async (c) => {
+  const { id } = c.req.valid('param')
+  const { limit, index } = c.req.valid('query')
+
+  const { data, error, status } = await fetchDeezer(`/artist/${id}/related`, {
+    limit,
+    index,
+  })
+
+  if (error) {
+    const errorType = status === 404 ? 'Not Found' : 'Upstream Error'
+    return c.json({ error: errorType, message: error }, status as 404)
+  }
+
+  return c.json(data, 200)
+})
+
+artist.openapi(getArtistRadioRoute, async (c) => {
+  const { id } = c.req.valid('param')
+  const { limit, index } = c.req.valid('query')
+
+  const { data, error, status } = await fetchDeezer(`/artist/${id}/radio`, {
     limit,
     index,
   })

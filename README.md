@@ -4,7 +4,8 @@ A lightweight proxy service for the [Deezer API](https://developers.deezer.com/a
 
 ## Features
 
-- **Full Deezer API Coverage** - Search, tracks, albums, artists, playlists, charts, radio, genres, and editorial content
+- **Full Deezer API Coverage** - Search, tracks, albums, artists, playlists, podcasts, charts, radio, genres, and editorial content
+- **ISRC Lookup** - Find tracks by International Standard Recording Code
 - **Auto-Generated OpenAPI Docs** - Interactive Swagger UI with spec generated from code
 - **Rate Limiting** - 100 requests per minute per IP address
 - **Type-Safe Validation** - Zod schemas with automatic OpenAPI metadata
@@ -40,14 +41,24 @@ Visit `/ui` in your browser to explore and test all endpoints interactively.
 | `GET /search/track?q=query` | Search tracks |
 | `GET /search/album?q=query` | Search albums |
 | `GET /search/artist?q=query` | Search artists |
+| `GET /search/playlist?q=query` | Search playlists |
+| `GET /search/podcast?q=query` | Search podcasts |
+| `GET /search/radio?q=query` | Search radio stations |
+| `GET /search/user?q=query` | Search users |
 
-**Query Parameters:** `q` (required), `order`, `limit`, `index`, `strict`
+**Query Parameters:**
+- `q` (required) - Search query
+- `order` - Sort: `RANKING`, `TRACK_ASC`, `TRACK_DESC`, `ARTIST_ASC`, `ARTIST_DESC`, `ALBUM_ASC`, `ALBUM_DESC`, `RATING_ASC`, `RATING_DESC`, `DURATION_ASC`, `DURATION_DESC`
+- `limit` - Number of results (1-100)
+- `index` - Starting offset for pagination
+- `strict` - Strict mode (`on`/`off`) - main search only
 
 ### Track
 
 | Endpoint | Description |
 |----------|-------------|
 | `GET /track/:id` | Get track by ID |
+| `GET /track/isrc/:isrc` | Get track by ISRC code |
 
 ### Album
 
@@ -63,6 +74,8 @@ Visit `/ui` in your browser to explore and test all endpoints interactively.
 | `GET /artist/:id` | Get artist by ID |
 | `GET /artist/:id/top` | Get artist's top tracks |
 | `GET /artist/:id/albums` | Get artist's albums |
+| `GET /artist/:id/related` | Get related artists |
+| `GET /artist/:id/radio` | Get artist radio mix |
 
 ### Playlist
 
@@ -89,6 +102,7 @@ Visit `/ui` in your browser to explore and test all endpoints interactively.
 |----------|-------------|
 | `GET /radio` | Get all radio stations |
 | `GET /radio/genres` | Get radio by genre |
+| `GET /radio/top` | Get top radio stations |
 | `GET /radio/lists` | Get radio lists |
 | `GET /radio/:id` | Get radio by ID |
 | `GET /radio/:id/tracks` | Get radio tracks |
@@ -111,6 +125,19 @@ Visit `/ui` in your browser to explore and test all endpoints interactively.
 | `GET /editorial/:id/selection` | Get curated selection |
 | `GET /editorial/:id/charts` | Get editorial charts |
 | `GET /editorial/:id/releases` | Get new releases |
+
+### Podcast
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /podcast/:id` | Get podcast by ID |
+| `GET /podcast/:id/episodes` | Get podcast episodes |
+
+### Episode
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /episode/:id` | Get episode by ID |
 
 ### Pagination
 
@@ -142,11 +169,26 @@ The server runs at `http://localhost:8787` by default.
 # Search for an artist
 curl "http://localhost:8787/search?q=daft+punk&limit=5"
 
+# Search with sorting
+curl "http://localhost:8787/search/track?q=love&order=DURATION_DESC&limit=10"
+
 # Get a specific track
 curl "http://localhost:8787/track/3135556"
 
+# Get track by ISRC
+curl "http://localhost:8787/track/isrc/USUM71703861"
+
 # Get top charts
 curl "http://localhost:8787/chart/tracks?limit=10"
+
+# Get podcast episodes
+curl "http://localhost:8787/podcast/699612/episodes?limit=5"
+
+# Get artist radio (tracks inspired by the artist)
+curl "http://localhost:8787/artist/27/radio?limit=10"
+
+# Get related artists
+curl "http://localhost:8787/artist/27/related?limit=5"
 ```
 
 ## Deployment to Appwrite
@@ -189,10 +231,14 @@ curl "http://localhost:8787/chart/tracks?limit=10"
    appwrite push functions
    ```
 
-Your function will be available at:
-```
-https://<deployment-id>.<region>.appwrite.run
-```
+Your function will be available at your configured domain or Appwrite's default URL.
+
+## Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PORT` | Server port for local development | `8787` |
+| `API_URL` | Production URL shown in OpenAPI spec | _(none)_ |
 
 ## Rate Limiting
 
@@ -224,7 +270,9 @@ src/
     ├── chart.ts
     ├── radio.ts
     ├── genre.ts
-    └── editorial.ts
+    ├── editorial.ts
+    ├── podcast.ts
+    └── episode.ts
 ```
 
 ## License
