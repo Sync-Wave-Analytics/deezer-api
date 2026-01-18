@@ -4,11 +4,23 @@
  * Endpoints for fetching Deezer charts (top tracks, albums, artists, playlists).
  */
 
-import { OpenAPIHono, createRoute } from '@hono/zod-openapi'
+import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { fetchDeezer } from '../lib/deezer'
 import { PaginationQuerySchema, DeezerDataSchema, ErrorSchema } from '../lib/schemas'
 
 const chart = new OpenAPIHono()
+
+// =============================================================================
+// Shared Schemas
+// =============================================================================
+
+const GenreIdParamSchema = z.object({
+  genreId: z.string().regex(/^\d+$/).openapi({
+    param: { name: 'genreId', in: 'path' },
+    description: 'Genre ID (use 0 for all genres)',
+    example: '0',
+  }),
+})
 
 // =============================================================================
 // Route Definitions
@@ -16,11 +28,12 @@ const chart = new OpenAPIHono()
 
 const getChartRoute = createRoute({
   method: 'get',
-  path: '/',
+  path: '/{genreId}',
   tags: ['Chart'],
-  summary: 'Get all charts',
-  description: 'Retrieve overall charts including top tracks, albums, artists, and playlists',
+  summary: 'Get charts by genre',
+  description: 'Retrieve charts including top tracks, albums, artists, and playlists for a specific genre (use 0 for all genres)',
   request: {
+    params: GenreIdParamSchema,
     query: PaginationQuerySchema,
   },
   responses: {
@@ -41,11 +54,12 @@ const getChartRoute = createRoute({
 
 const getChartTracksRoute = createRoute({
   method: 'get',
-  path: '/tracks',
+  path: '/{genreId}/tracks',
   tags: ['Chart'],
-  summary: 'Get top tracks',
-  description: 'Retrieve the current top tracks chart',
+  summary: 'Get top tracks by genre',
+  description: 'Retrieve the top tracks chart for a specific genre (use 0 for all genres)',
   request: {
+    params: GenreIdParamSchema,
     query: PaginationQuerySchema,
   },
   responses: {
@@ -66,11 +80,12 @@ const getChartTracksRoute = createRoute({
 
 const getChartAlbumsRoute = createRoute({
   method: 'get',
-  path: '/albums',
+  path: '/{genreId}/albums',
   tags: ['Chart'],
-  summary: 'Get top albums',
-  description: 'Retrieve the current top albums chart',
+  summary: 'Get top albums by genre',
+  description: 'Retrieve the top albums chart for a specific genre (use 0 for all genres)',
   request: {
+    params: GenreIdParamSchema,
     query: PaginationQuerySchema,
   },
   responses: {
@@ -91,11 +106,12 @@ const getChartAlbumsRoute = createRoute({
 
 const getChartArtistsRoute = createRoute({
   method: 'get',
-  path: '/artists',
+  path: '/{genreId}/artists',
   tags: ['Chart'],
-  summary: 'Get top artists',
-  description: 'Retrieve the current top artists chart',
+  summary: 'Get top artists by genre',
+  description: 'Retrieve the top artists chart for a specific genre (use 0 for all genres)',
   request: {
+    params: GenreIdParamSchema,
     query: PaginationQuerySchema,
   },
   responses: {
@@ -116,11 +132,12 @@ const getChartArtistsRoute = createRoute({
 
 const getChartPlaylistsRoute = createRoute({
   method: 'get',
-  path: '/playlists',
+  path: '/{genreId}/playlists',
   tags: ['Chart'],
-  summary: 'Get top playlists',
-  description: 'Retrieve the current top playlists chart',
+  summary: 'Get top playlists by genre',
+  description: 'Retrieve the top playlists chart for a specific genre (use 0 for all genres)',
   request: {
+    params: GenreIdParamSchema,
     query: PaginationQuerySchema,
   },
   responses: {
@@ -141,11 +158,12 @@ const getChartPlaylistsRoute = createRoute({
 
 const getChartPodcastsRoute = createRoute({
   method: 'get',
-  path: '/podcasts',
+  path: '/{genreId}/podcasts',
   tags: ['Chart'],
-  summary: 'Get top podcasts',
-  description: 'Retrieve the current top podcasts chart',
+  summary: 'Get top podcasts by genre',
+  description: 'Retrieve the top podcasts chart for a specific genre (use 0 for all genres)',
   request: {
+    params: GenreIdParamSchema,
     query: PaginationQuerySchema,
   },
   responses: {
@@ -169,9 +187,10 @@ const getChartPodcastsRoute = createRoute({
 // =============================================================================
 
 chart.openapi(getChartRoute, async (c) => {
+  const { genreId } = c.req.valid('param')
   const { limit, index } = c.req.valid('query')
 
-  const { data, error, status } = await fetchDeezer('/chart', { limit, index })
+  const { data, error, status } = await fetchDeezer(`/chart/${genreId}`, { limit, index })
 
   if (error) {
     return c.json({ error: 'Upstream Error', message: error }, status as 502)
@@ -181,9 +200,10 @@ chart.openapi(getChartRoute, async (c) => {
 })
 
 chart.openapi(getChartTracksRoute, async (c) => {
+  const { genreId } = c.req.valid('param')
   const { limit, index } = c.req.valid('query')
 
-  const { data, error, status } = await fetchDeezer('/chart/0/tracks', { limit, index })
+  const { data, error, status } = await fetchDeezer(`/chart/${genreId}/tracks`, { limit, index })
 
   if (error) {
     return c.json({ error: 'Upstream Error', message: error }, status as 502)
@@ -193,9 +213,10 @@ chart.openapi(getChartTracksRoute, async (c) => {
 })
 
 chart.openapi(getChartAlbumsRoute, async (c) => {
+  const { genreId } = c.req.valid('param')
   const { limit, index } = c.req.valid('query')
 
-  const { data, error, status } = await fetchDeezer('/chart/0/albums', { limit, index })
+  const { data, error, status } = await fetchDeezer(`/chart/${genreId}/albums`, { limit, index })
 
   if (error) {
     return c.json({ error: 'Upstream Error', message: error }, status as 502)
@@ -205,9 +226,10 @@ chart.openapi(getChartAlbumsRoute, async (c) => {
 })
 
 chart.openapi(getChartArtistsRoute, async (c) => {
+  const { genreId } = c.req.valid('param')
   const { limit, index } = c.req.valid('query')
 
-  const { data, error, status } = await fetchDeezer('/chart/0/artists', { limit, index })
+  const { data, error, status } = await fetchDeezer(`/chart/${genreId}/artists`, { limit, index })
 
   if (error) {
     return c.json({ error: 'Upstream Error', message: error }, status as 502)
@@ -217,9 +239,10 @@ chart.openapi(getChartArtistsRoute, async (c) => {
 })
 
 chart.openapi(getChartPlaylistsRoute, async (c) => {
+  const { genreId } = c.req.valid('param')
   const { limit, index } = c.req.valid('query')
 
-  const { data, error, status } = await fetchDeezer('/chart/0/playlists', { limit, index })
+  const { data, error, status } = await fetchDeezer(`/chart/${genreId}/playlists`, { limit, index })
 
   if (error) {
     return c.json({ error: 'Upstream Error', message: error }, status as 502)
@@ -229,9 +252,10 @@ chart.openapi(getChartPlaylistsRoute, async (c) => {
 })
 
 chart.openapi(getChartPodcastsRoute, async (c) => {
+  const { genreId } = c.req.valid('param')
   const { limit, index } = c.req.valid('query')
 
-  const { data, error, status } = await fetchDeezer('/chart/0/podcasts', { limit, index })
+  const { data, error, status } = await fetchDeezer(`/chart/${genreId}/podcasts`, { limit, index })
 
   if (error) {
     return c.json({ error: 'Upstream Error', message: error }, status as 502)
